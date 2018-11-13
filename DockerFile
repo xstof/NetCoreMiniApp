@@ -1,9 +1,13 @@
 FROM microsoft/dotnet:2.1-sdk AS build
 COPY /src /src
 WORKDIR /src/
-RUN dotnet build -o output
+
+#RUN dotnet build -o output
+RUN dotnet publish -c Debug -o ./output
 
 FROM microsoft/dotnet:2.1-aspnetcore-runtime AS runtime
 COPY --from=build /src/output .
 ENTRYPOINT ["dotnet", "MyMvc.dll"]
+ENV ASPNETCORE_TITLE="Demo App 1"
+ENV ASPNETCORE_COLOR="Grey"
 
