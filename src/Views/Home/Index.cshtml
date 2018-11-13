@@ -1,0 +1,31 @@
+﻿@using Microsoft.Extensions.Configuration
+
+@{
+    ViewData["Title"] = "Home Page";
+    string jumboColor = Configuration["COLOR"];
+}
+
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject IConfiguration Configuration
+
+<div class="jumbotron" 
+     @if(!String.IsNullOrWhiteSpace(jumboColor)){@Html.Raw("style=\"background-color:"  + jumboColor + "\"")}>
+  <h1 class="display-4">
+      @if(!String.IsNullOrWhiteSpace(Configuration["TITLE"])){
+          @Configuration["TITLE"]
+      }
+      else{
+          <text>"Demo Application"</text>
+      }
+  </h1>
+  <p class="lead">This is a simple ASP.NET Core demonstration page for testing purposes.</p>
+  <hr class="my-4">
+  <p>This page got called from ip address: @HttpContextAccessor.HttpContext.Connection.RemoteIpAddress.ToString()</p>
+   @if(String.IsNullOrWhiteSpace(Configuration["TITLE"])){
+          <p>Set the title of this app using an environment variable.  Like:  ASPNETCORE_TITLE</p>
+    }
+    @if(String.IsNullOrWhiteSpace(Configuration["COLOR"])){
+          <p>Set the color of this app using an environment variable.  Like:  ASPNETCORE_COLOR</p>
+    }
+</div>
+
