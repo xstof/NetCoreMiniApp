@@ -1,0 +1,17 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h2>Index</h2>
+
+@if (@ViewData["ConnectionString"] != null && !String.IsNullOrWhiteSpace(@ViewData["ConnectionString"].ToString()))
+{
+    <text>Configured connection string:</text> @ViewData["ConnectionString"].ToString()
+}
+else
+{
+    <text>For data access, please configure a SQL connection string to the database,adding either a connection string in app service called "wideworldimporters" or an environment variable with name "SQLCONNSTR_WIDEWORLDIMPORTERS" (which also works locally)</text>
+}
+
+

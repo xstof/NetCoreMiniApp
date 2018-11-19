@@ -8,9 +8,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MyMvc.Database;
 
 namespace MyMvc
 {
@@ -36,13 +38,19 @@ namespace MyMvc
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
+            // allow the HTTP context (such as ipAddress from connection) to be accessed:
             services.AddHttpContextAccessor();
             services.TryAddSingleton<IActionContextAccessor, ActionContextAccessor>();
+
+            // add database context to wideworldimporters database (classes scaffolded from db using the cli)
+            services.AddDbContext<WideWorldDbContext>(options => 
+                options.UseSqlServer(Configuration.GetConnectionString("WideWorldImporters")));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -50,6 +58,7 @@ namespace MyMvc
             else
             {
                 app.UseExceptionHandler("/Home/Error");
+                
                 //app.UseHsts();
             }
 

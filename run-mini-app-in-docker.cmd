@@ -1,0 +1,1 @@
+docker run --rm -ti -p 5000:80 -e SQLCONNSTR_WIDEWORLDIMPORTERS="Data Source=BE-CHRISTOC-SP4;Initial Catalog=WideWorldImporters;Persist Security Info=True;User ID=sa;Password=P@55w0rd2018"  xstof/miniapp
