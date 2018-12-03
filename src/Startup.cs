@@ -12,7 +12,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.AzureAD.UI;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+
 using MyMvc.Database;
+
 
 namespace MyMvc
 {
@@ -27,7 +33,7 @@ namespace MyMvc
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
-        {
+        {     
             services.Configure<CookiePolicyOptions>(options =>
             {
                 // This lambda determines whether user consent for non-essential cookies is needed for a given request.
@@ -35,6 +41,17 @@ namespace MyMvc
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
+            // configure Open ID Connect authentication for AAD:
+            services.AddAuthentication(AzureADDefaults.AuthenticationScheme)
+                    .AddAzureAD(opts => {
+                        Configuration.Bind("AzureAd", opts);
+                    });
+
+            // choose not to validate which directory issued the id_token, so this works with any AAD tenant:
+            services.Configure<OpenIdConnectOptions>(AzureADDefaults.OpenIdScheme, opts => {
+                opts.Authority = opts.Authority + "/v2.0/";
+                opts.TokenValidationParameters.ValidateIssuer = false;
+            });
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
@@ -65,6 +82,9 @@ namespace MyMvc
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCookiePolicy();
+
+            // configure app to use authentication, injecting the middleware in the pipeline:
+            app.UseAuthentication();
 
             app.UseMvc(routes =>
             {
