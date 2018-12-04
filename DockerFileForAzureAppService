@@ -1,0 +1,53 @@
+# Build the application
+FROM microsoft/dotnet:2.1-sdk AS build
+COPY /src /src
+WORKDIR /src/
+
+RUN dotnet publish -c Debug -o ./output
+
+# Copy application over and initialize with environment variables
+FROM microsoft/dotnet:2.1-aspnetcore-runtime AS runtime
+COPY --from=build /src/output /home/site/wwwroot
+ENV ASPNETCORE_TITLE="Demo App 1"
+ENV ASPNETCORE_COLOR="Grey"
+
+# Enable Azure App Service SSH access to this container
+COPY DockerForAzureAppService/sshd_config /etc/ssh/
+COPY DockerForAzureAppService/init_container.sh /opt/startup/init_container.sh
+
+RUN mkdir -p /home/LogFiles \
+    && echo "root:Docker!" | chpasswd \
+    && echo "cd /home" >> /etc/bash.bashrc \
+    && apt update \
+    && apt install -y --no-install-recommends openssh-server vim curl wget tcptraceroute \
+    && chmod 755 /opt/startup/init_container.sh
+
+# EXPOSE 2222 8080
+EXPOSE 2222 80
+
+# ENV PORT 8080
+ENV PORT 80
+ENV WEBSITE_ROLE_INSTANCE_ID localRoleInstance
+ENV WEBSITE_INSTANCE_ID localInstance
+ENV PATH ${PATH}:/home/site/wwwroot
+
+WORKDIR /home/site/wwwroot
+ENTRYPOINT ["/opt/startup/init_container.sh"]
+
+# ENTRYPOINT ["dotnet", "MyMvc.dll"]
+
+# RUN npm install -g pm2 \
+#     && mkdir -p /home/LogFiles \
+#     && echo "root:Docker!" | chpasswd \
+#     && echo "cd /home" >> /etc/bash.bashrc \
+#     && apt update \
+#     && apt install -y --no-install-recommends openssh-server vim curl wget tcptraceroute \
+#     && cd /opt/startup \
+#     && npm install \
+#     && chmod 755 /opt/startup/init_container.sh
+
+# ENV PM2HOME /pm2home
+
+
+
+
