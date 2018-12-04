@@ -1,0 +1,60 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "AppServicePlanName": {
+           "type": "string",
+           "metadata": {
+                "description": "Name for the App Service Plan"
+            }
+        },
+        "WebAppName": {
+            "type": "string",
+            "metadata": {
+                 "description": "Name for the Web App"
+             }
+         }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2016-09-01",
+            "name": "[parameters('AppServicePlanName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "S1",
+                "capacity": 1
+            },
+            "tags": {
+                "displayName": "[parameters('AppServicePlanName')]",
+                "CC": "dev",
+                "Env": "dev" 
+            },
+            "properties": {
+                "name": "AppServicePlanName"
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2015-08-01",
+            "name": "[parameters('WebAppName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]": "Resource",
+                "displayName": "parameters('AppServicePlanName')",
+                "CC": "dev",
+                "Env": "dev" 
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]"
+            ],
+            "properties": {
+                "name": "parameters('AppServicePlanName')",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]"
+            }
+        }
+
+    ],
+    "outputs": {}
+}
