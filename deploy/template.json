@@ -13,6 +13,23 @@
             "metadata": {
                  "description": "Name for the Web App"
              }
+         },
+         "SQLConnectionString": {
+            "type": "string",
+            "metadata": {
+                 "description": "Connection string to WideWorldImporters SQL Server database"
+             }
+         },
+         "RepoURL": {
+            "type": "string",
+            "defaultValue": "https://github.com/xstof/NetCoreMiniApp",
+            "metadata": {
+                 "description": "Repository URL from where to deploy the application"
+             }
+         },
+         "Branch": {
+            "type": "string",
+            "defaultValue": "master"
          }
     },
     "variables": {},
@@ -32,7 +49,7 @@
                 "Env": "dev" 
             },
             "properties": {
-                "name": "AppServicePlanName"
+                "name": "[parameters('AppServicePlanName')]"
             }
         },
         {
@@ -42,7 +59,7 @@
             "location": "[resourceGroup().location]",
             "tags": {
                 "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]": "Resource",
-                "displayName": "parameters('AppServicePlanName')",
+                "displayName": "[parameters('WebAppName')]",
                 "CC": "dev",
                 "Env": "dev" 
             },
@@ -50,9 +67,61 @@
                 "[concat('Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]"
             ],
             "properties": {
-                "name": "parameters('AppServicePlanName')",
+                "name": "[parameters('WebAppName')]",
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]"
-            }
+            },
+            "resources": [
+                {
+                  "apiVersion": "2015-08-01",
+                  "name": "web",
+                  "type": "config",
+                  "dependsOn": [
+                    "[concat('Microsoft.Web/sites/', parameters('WebAppName'))]"
+                  ],
+                  "tags": {
+                    "displayName": "WebAppConfig"
+                  },
+                  "properties": {
+                    "phpVersion": "5.6",
+                    "netFrameworkVersion": "v4.6",
+                    "use32BitWorkerProcess": false,
+                    "webSocketsEnabled": true,
+                    "alwaysOn": false,
+                    "remoteDebuggingEnabled": true,
+                    "remoteDebuggingVersion": "VS2015"
+                  }
+                },
+                {
+                  "name": "connectionstrings",
+                  "type": "config",
+                  "apiVersion": "2015-08-01",
+                  "dependsOn": [
+                    "[concat('Microsoft.Web/sites/', parameters('WebAppName'))]"
+                  ],
+                  "tags": {
+                    "displayName": "WebAppConnectionStrings"
+                  },
+                  "properties": {
+                    "WideWorldImporters": {
+                      "value": "[parameters('SQLConnectionString')]",
+                      "type": "SQLAzure"
+                    }
+                  }
+                },
+                {
+                    "apiVersion": "2015-08-01",
+                    "name": "web",
+                    "type": "sourcecontrols",
+                    "dependsOn": [
+                      "[resourceId('Microsoft.Web/Sites', parameters('WebAppName'))]"
+                    ],
+                    "properties": {
+                      "RepoUrl": "[parameters('RepoURL')]",
+                      "branch": "[parameters('Branch')]",
+                      "IsManualIntegration": false
+                    }
+                  }
+              ]
         }
 
     ],
