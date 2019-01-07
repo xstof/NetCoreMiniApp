@@ -2,34 +2,65 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "AppServicePlanName": {
+        "appServicePlanName": {
            "type": "string",
            "metadata": {
                 "description": "Name for the App Service Plan"
             }
         },
-        "WebAppName": {
+        "webAppName": {
             "type": "string",
             "metadata": {
                  "description": "Name for the Web App"
              }
          },
-         "SQLConnectionString": {
+         "sqlConnectionString": {
             "type": "string",
+            "defaultValue": "<connection string goes here>",
             "metadata": {
                  "description": "Connection string to WideWorldImporters SQL Server database"
              }
          },
-         "RepoURL": {
+         "repoURL": {
             "type": "string",
             "defaultValue": "https://github.com/xstof/NetCoreMiniApp",
             "metadata": {
                  "description": "Repository URL from where to deploy the application"
              }
          },
-         "Branch": {
+         "branch": {
             "type": "string",
             "defaultValue": "master"
+         },
+         "deployAzureSqlDb": {
+            "type": "bool",
+            "defaultValue": "false"
+         },
+         "siteDisplayTitle": {
+            "type": "string",
+            "defaultValue": "Demo Site"
+         },
+         "sqlServerName": {
+            "type": "string",
+            "defaultValue": ""
+         },
+         "sqlServerUserName": {
+            "type": "string",
+            "defaultValue": "sa"
+         },
+         "sqlServerPassword": {
+            "type": "string",
+            "defaultValue": ""
+         },
+         "sqlServerDatabaseName": {
+            "type": "string",
+            "defaultValue": "WideWorldImporters"
+         },
+         "sqlServerSasTokenForImport": {
+          "type": "string"
+         },
+         "storageAccountName": {
+          "type": "string"
          }
     },
     "variables": {},
@@ -37,38 +68,38 @@
         {
             "type": "Microsoft.Web/serverfarms",
             "apiVersion": "2016-09-01",
-            "name": "[parameters('AppServicePlanName')]",
+            "name": "[parameters('appServicePlanName')]",
             "location": "[resourceGroup().location]",
             "sku": {
                 "name": "S1",
                 "capacity": 1
             },
             "tags": {
-                "displayName": "[parameters('AppServicePlanName')]",
+                "displayName": "[parameters('appServicePlanName')]",
                 "CC": "dev",
                 "Env": "dev" 
             },
             "properties": {
-                "name": "[parameters('AppServicePlanName')]"
+                "name": "[parameters('appServicePlanName')]"
             }
         },
         {
             "type": "Microsoft.Web/sites",
             "apiVersion": "2015-08-01",
-            "name": "[parameters('WebAppName')]",
+            "name": "[parameters('webAppName')]",
             "location": "[resourceGroup().location]",
             "tags": {
-                "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]": "Resource",
-                "displayName": "[parameters('WebAppName')]",
+                "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', parameters('appServicePlanName'))]": "Resource",
+                "displayName": "[parameters('webAppName')]",
                 "CC": "dev",
                 "Env": "dev" 
             },
             "dependsOn": [
-                "[concat('Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]"
+                "[concat('Microsoft.Web/serverfarms/', parameters('appServicePlanName'))]"
             ],
             "properties": {
-                "name": "[parameters('WebAppName')]",
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', parameters('AppServicePlanName'))]"
+                "name": "[parameters('webAppName')]",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', parameters('appServicePlanName'))]"
             },
             "resources": [
                 {
@@ -76,7 +107,7 @@
                   "name": "web",
                   "type": "config",
                   "dependsOn": [
-                    "[concat('Microsoft.Web/sites/', parameters('WebAppName'))]"
+                    "[concat('Microsoft.Web/sites/', parameters('webAppName'))]"
                   ],
                   "tags": {
                     "displayName": "WebAppConfig"
@@ -96,32 +127,112 @@
                   "type": "config",
                   "apiVersion": "2015-08-01",
                   "dependsOn": [
-                    "[concat('Microsoft.Web/sites/', parameters('WebAppName'))]"
+                    "[concat('Microsoft.Web/sites/', parameters('webAppName'))]"
                   ],
                   "tags": {
                     "displayName": "WebAppConnectionStrings"
                   },
                   "properties": {
                     "WideWorldImporters": {
-                      "value": "[parameters('SQLConnectionString')]",
+                      "value": "[if(parameters('deployAzureSqlDb'), concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Database=', parameters('sqlServerDatabaseName'), ';User ID=', parameters('sqlServerUserName'), ';Password=', parameters('sqlServerPassword'), ';Encrypt=true;Connection Timeout=30;'), parameters('sqlConnectionString'))]",
                       "type": "SQLAzure"
                     }
                   }
+                },
+                {
+                    "name": "appsettings",
+                    "type": "config",
+                    "apiVersion": "2015-08-01",
+                    "dependsOn": [
+                      "[concat('Microsoft.Web/sites/', parameters('webAppName'))]"
+                    ],
+                    "properties": {
+                      "TITLE": "[parameters('siteDisplayTitle')]"
+                    }
                 },
                 {
                     "apiVersion": "2015-08-01",
                     "name": "web",
                     "type": "sourcecontrols",
                     "dependsOn": [
-                      "[resourceId('Microsoft.Web/Sites', parameters('WebAppName'))]"
+                      "[resourceId('Microsoft.Web/Sites', parameters('webAppName'))]"
                     ],
                     "properties": {
-                      "RepoUrl": "[parameters('RepoURL')]",
-                      "branch": "[parameters('Branch')]",
+                      "repoURL": "[parameters('repoURL')]",
+                      "branch": "[parameters('branch')]",
                       "IsManualIntegration": false
                     }
-                  }
+                }
               ]
+        },
+        {
+            "condition": "[parameters('deployAzureSqlDb')]",
+            "name": "[parameters('sqlServerName')]",
+            "type": "Microsoft.Sql/servers",
+            "location": "[resourceGroup().location]",
+            "tags": {
+              "displayName": "SqlServer"
+            },
+            "apiVersion": "2014-04-01",
+            "properties": {
+              "administratorLogin": "[parameters('sqlServerUserName')]",
+              "administratorLoginPassword": "[parameters('sqlServerPassword')]",
+              "version": "12.0"
+            },
+            "resources": [
+              {
+                "name": "[parameters('sqlServerDatabaseName')]",
+                "type": "databases",
+                "location": "[resourceGroup().location]",
+                "tags": {
+                  "displayName": "Database"
+                },
+                "apiVersion": "2015-01-01",
+                "dependsOn": [
+                  "[parameters('sqlServerName')]"
+                ],
+                "properties": {
+                  "edition": "Basic",
+                  "collation": "SQL_Latin1_General_CP1_CI_AS",
+                  "maxSizeBytes": "1073741824",
+                  "requestedServiceObjectiveName": "Basic"
+                },
+                "resources":
+                [
+                    {
+                        "name": "Import",
+                        "type": "extensions",
+                        "apiVersion": "2014-04-01",
+                        "dependsOn":
+                        [
+                            "[concat('Microsoft.Sql/servers/', parameters('sqlServerName'), '/databases/', parameters('sqlServerDatabaseName'))]"
+                        ],
+                        "properties":
+                        {
+                            "storageKeyType": "SharedAccessKey",
+                            "storageKey": "[parameters('sqlServerSasTokenForImport')]",
+                            "storageUri": "[concat('https://', parameters('storageAccountName'), '.blob.core.windows.net/', 'sqldbimport','/wideworldimportersdb.bacpac', '?' )]",
+                            "administratorLogin": "[parameters('sqlServerUserName')]",
+                            "administratorLoginPassword": "[parameters('sqlServerPassword')]",
+                            "operationMode": "Import"
+                        }
+                    }
+                ]
+              },
+              {
+                "type": "firewallrules",
+                "apiVersion": "2014-04-01",
+                "dependsOn": [
+                  "[parameters('sqlServerName')]"
+                ],
+                "location": "[resourceGroup().location]",
+                "name": "AllowAllWindowsAzureIps",
+                "properties": {
+                  "endIpAddress": "0.0.0.0",
+                  "startIpAddress": "0.0.0.0"
+                }
+              }
+            ]
         }
 
     ],
