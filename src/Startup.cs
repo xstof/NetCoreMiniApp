@@ -18,7 +18,8 @@ using Microsoft.AspNetCore.Authentication.AzureAD.UI;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 using MyMvc.Database;
-
+using System.Data.SqlClient;
+using Microsoft.Azure.Services.AppAuthentication;
 
 namespace MyMvc
 {
@@ -60,8 +61,21 @@ namespace MyMvc
             services.TryAddSingleton<IActionContextAccessor, ActionContextAccessor>();
 
             // add database context to wideworldimporters database (classes scaffolded from db using the cli)
-            services.AddDbContext<WideWorldDbContext>(options => 
-                options.UseSqlServer(Configuration.GetConnectionString("WideWorldImporters")));
+            services.AddDbContext<WideWorldDbContext>(options =>
+                {
+                    var connString = Configuration.GetConnectionString("WideWorldImporters");
+                    var conn = new System.Data.SqlClient.SqlConnection(connString);
+                    
+                    // if authenticating through AAD creds, fetch token and set it on connection:
+                    if(!connString.Contains("User Id=") && !connString.Contains("Password="))
+                    {
+                        var accessToken = new AzureServiceTokenProvider().GetAccessTokenAsync("https://database.windows.net/").Result;
+                        conn.AccessToken = accessToken;
+                    }
+
+                    options.UseSqlServer(conn);   
+                }
+            );
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -61,6 +61,14 @@
          },
          "storageAccountName": {
           "type": "string"
+         },
+         "enableMSIForWebApp": {
+          "type": "bool",
+          "defaultValue": "false"
+         },
+         "importDatabaseData": {
+          "type": "bool",
+          "defaultValue": "true"
          }
     },
     "variables": {},
@@ -85,9 +93,12 @@
         },
         {
             "type": "Microsoft.Web/sites",
-            "apiVersion": "2015-08-01",
+            "apiVersion": "2016-08-01",
             "name": "[parameters('webAppName')]",
             "location": "[resourceGroup().location]",
+            "identity": {
+              "type": "[if(parameters('enableMSIForWebApp'), 'SystemAssigned', 'None')]"
+            },
             "tags": {
                 "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', parameters('appServicePlanName'))]": "Resource",
                 "displayName": "[parameters('webAppName')]",
@@ -134,7 +145,7 @@
                   },
                   "properties": {
                     "WideWorldImporters": {
-                      "value": "[if(parameters('deployAzureSqlDb'), concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Database=', parameters('sqlServerDatabaseName'), ';User ID=', parameters('sqlServerUserName'), ';Password=', parameters('sqlServerPassword'), ';Encrypt=true;Connection Timeout=30;'), parameters('sqlConnectionString'))]",
+                      "value": "[if(parameters('deployAzureSqlDb'), concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Initial Catalog=', parameters('sqlServerDatabaseName'), if(not(parameters('enableMSIForWebApp')), concat(';User ID=', parameters('sqlServerUserName'), ';Password=', parameters('sqlServerPassword'), ';Encrypt=true;Connection Timeout=30;'), '')), parameters('sqlConnectionString'))]",
                       "type": "SQLAzure"
                     }
                   }
@@ -192,14 +203,15 @@
                   "[parameters('sqlServerName')]"
                 ],
                 "properties": {
-                  "edition": "Basic",
+                  "edition": "Standard",
                   "collation": "SQL_Latin1_General_CP1_CI_AS",
                   "maxSizeBytes": "1073741824",
-                  "requestedServiceObjectiveName": "Basic"
+                  "requestedServiceObjectiveName": "S2"
                 },
                 "resources":
                 [
                     {
+                        "condition": "[parameters('importDatabaseData')]", 
                         "name": "Import",
                         "type": "extensions",
                         "apiVersion": "2014-04-01",
