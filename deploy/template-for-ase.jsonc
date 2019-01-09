@@ -1,0 +1,196 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appServiceEnvironmentName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the ASE"
+      }
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the App Service Plan"
+      }
+    },
+    "webAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the Web App"
+      }
+    },
+    "sqlConnectionString": {
+      "type": "string",
+      "defaultValue": "<connection string goes here>",
+      "metadata": {
+        "description": "Connection string to WideWorldImporters SQL Server database"
+      }
+    },
+    "repoURL": {
+      "type": "string",
+      "defaultValue": "https://github.com/xstof/NetCoreMiniApp",
+      "metadata": {
+        "description": "Repository URL from where to deploy the application"
+      }
+    },
+    "branch": {
+      "type": "string",
+      "defaultValue": "master"
+    },
+    "deployAzureSqlDb": {
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    "siteDisplayTitle": {
+      "type": "string",
+      "defaultValue": "Demo Site"
+    },
+    "sqlServerName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "sqlServerUserName": {
+      "type": "string",
+      "defaultValue": "sa"
+    },
+    "sqlServerPassword": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "sqlServerDatabaseName": {
+      "type": "string",
+      "defaultValue": "WideWorldImporters"
+    },
+    "sqlServerSasTokenForImport": {
+      "type": "string"
+    },
+    "storageAccountName": {
+      "type": "string"
+    },
+    "enableMSIForWebApp": {
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    "importDatabaseData": {
+      "type": "bool",
+      "defaultValue": "true"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2016-09-01",
+      "name": "[parameters('appServicePlanName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "I1",
+        "tier": "Isolated",
+        "size": "I1",
+        "family": "I",
+        "capacity": 1
+      },
+      "tags": {
+        "displayName": "[parameters('appServicePlanName')]",
+        "CC": "dev",
+        "Env": "dev"
+      },
+      "properties": {
+        "name": "[parameters('appServicePlanName')]",
+        "hostingEnvironmentProfile": {
+          "id": "[resourceId('Microsoft.Web/hostingEnvironments',parameters('appServiceEnvironmentName'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2016-08-01",
+      "name": "[parameters('webAppName')]",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "[if(parameters('enableMSIForWebApp'), 'SystemAssigned', 'None')]"
+      },
+      "tags": {
+        "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', parameters('appServicePlanName'))]": "Resource",
+        "displayName": "[parameters('webAppName')]",
+        "CC": "dev",
+        "Env": "dev"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverfarms/', parameters('appServicePlanName'))]"
+      ],
+      "properties": {
+        "name": "[parameters('webAppName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', parameters('appServicePlanName'))]",
+        "hostingEnvironmentProfile": {
+          "id": "[resourceId('Microsoft.Web/hostingEnvironments', parameters('appServiceEnvironmentName'))]"
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "config",
+          "dependsOn": [
+            "[concat('Microsoft.Web/sites/', parameters('webAppName'))]"
+          ],
+          "tags": {
+            "displayName": "WebAppConfig"
+          },
+          "properties": {
+            "phpVersion": "5.6",
+            "netFrameworkVersion": "v4.6",
+            "use32BitWorkerProcess": false,
+            "webSocketsEnabled": true,
+            "alwaysOn": false,
+            "remoteDebuggingEnabled": true,
+            "remoteDebuggingVersion": "VS2015"
+          }
+        },
+        {
+          "name": "connectionstrings",
+          "type": "config",
+          "apiVersion": "2015-08-01",
+          "dependsOn": [
+            "[concat('Microsoft.Web/sites/', parameters('webAppName'))]"
+          ],
+          "tags": {
+            "displayName": "WebAppConnectionStrings"
+          },
+          "properties": {
+            "WideWorldImporters": {
+              "value": "[if(parameters('deployAzureSqlDb'), concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Initial Catalog=', parameters('sqlServerDatabaseName'), if(not(parameters('enableMSIForWebApp')), concat(';User ID=', parameters('sqlServerUserName'), ';Password=', parameters('sqlServerPassword'), ';Encrypt=true;Connection Timeout=30;'), '')), parameters('sqlConnectionString'))]",
+              "type": "SQLAzure"
+            }
+          }
+        },
+        {
+          "name": "appsettings",
+          "type": "config",
+          "apiVersion": "2015-08-01",
+          "dependsOn": [
+            "[concat('Microsoft.Web/sites/', parameters('webAppName'))]"
+          ],
+          "properties": {
+            "TITLE": "[parameters('siteDisplayTitle')]"
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "sourcecontrols",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', parameters('webAppName'))]"
+          ],
+          "properties": {
+            "repoURL": "[parameters('repoURL')]",
+            "branch": "[parameters('branch')]",
+            "IsManualIntegration": false
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": {}
+}

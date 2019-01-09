@@ -21,7 +21,8 @@ param (
     [Parameter(ParameterSetName="deploydbinazure")] [string]$SqlUserName = "SqlAdmin",
     [Parameter(ParameterSetName="deploydbinazure")] [string]$SqlPassword = "",
     [Parameter(ParameterSetName="deploydbinazure")] [switch]$EnableMSIAuthTowardsSQL = $False,
-    [Parameter(ParameterSetName="deploydbinazure")] [switch]$SkipSampleDataImport = $False
+    [Parameter(ParameterSetName="deploydbinazure")] [switch]$SkipSampleDataImport = $False,
+    [string]$AppServiceEnvironmentName = ""
 )
 
 $Location = "westeurope"
@@ -87,9 +88,19 @@ if($DeployDatabase){
 }
 
 # actual deployment command
-Write-Output "About to deploy template"
-az group deployment create --resource-group $RG -n $DeploymentName --parameters appServicePlanName=$PlanName webAppName=$WebAppName  sqlConnectionString=$ConnString siteDisplayTitle=$DisplayTitleForSite deployAzureSqlDb=$DeployDbArmParam sqlServerName=$SqlServerName sqlServerUserName=$SqlUserName sqlServerDatabaseName=$SqlDatabaseName sqlServerPassword=`"$SqlPassword`" storageAccountName=$StorageAccountName sqlServerSasTokenForImport=$SasTokenForSqlImport enableMSIForWebApp=$EnableMSIForWebAppArmParam importDatabaseData=$ImportDbDataArmParam --template-file .\deploy\template.json --verbose
-Write-Output "Template deployed"
+if([String]::IsNullOrEmpty($AppServiceEnvironmentName)){
+    # NON-ASE
+    Write-Output "About to deploy template for app service (non-ASE)"
+    az group deployment create --resource-group $RG -n $DeploymentName --parameters appServicePlanName=$PlanName webAppName=$WebAppName  sqlConnectionString=$ConnString siteDisplayTitle=$DisplayTitleForSite deployAzureSqlDb=$DeployDbArmParam sqlServerName=$SqlServerName sqlServerUserName=$SqlUserName sqlServerDatabaseName=$SqlDatabaseName sqlServerPassword=`"$SqlPassword`" storageAccountName=$StorageAccountName sqlServerSasTokenForImport=$SasTokenForSqlImport enableMSIForWebApp=$EnableMSIForWebAppArmParam importDatabaseData=$ImportDbDataArmParam --template-file .\deploy\template.json --verbose
+    Write-Output "Template deployed"
+}
+else{
+    # ASE
+    Write-Output "About to deploy template for app service environment (ASE: $AppServiceEnvironmentName)"
+    az group deployment create --resource-group $RG -n $DeploymentName --parameters appServicePlanName=$PlanName webAppName=$WebAppName  sqlConnectionString=$ConnString siteDisplayTitle=$DisplayTitleForSite deployAzureSqlDb=$DeployDbArmParam sqlServerName=$SqlServerName sqlServerUserName=$SqlUserName sqlServerDatabaseName=$SqlDatabaseName sqlServerPassword=`"$SqlPassword`" storageAccountName=$StorageAccountName sqlServerSasTokenForImport=$SasTokenForSqlImport enableMSIForWebApp=$EnableMSIForWebAppArmParam importDatabaseData=$ImportDbDataArmParam appServiceEnvironmentName=$AppServiceEnvironmentName  --template-file .\deploy\template-for-ase.jsonc --verbose
+    Write-Output "Template deployed"
+}
+
 
 # if requested to enable Managed Service Account-enabled authentication towards Azure SQL DB:
 if($EnableMSIAuthTowardsSQL){
