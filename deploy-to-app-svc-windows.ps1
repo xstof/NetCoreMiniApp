@@ -105,7 +105,7 @@ else{
 # if requested to enable Managed Service Account-enabled authentication towards Azure SQL DB:
 if($EnableMSIAuthTowardsSQL){
     Write-Output "About to configure MSI-based auth towards SQL Server"
-    $WebAppServicePrincipalId = az webapp identity show -n xstofappsvcdemoweb -g xstofappsvcdemo --query "principalId"
+    $WebAppServicePrincipalId = az webapp identity show -n $WebAppName -g $RG --query "principalId"
     Write-Output "Web Application got assigned Service Principal with Id: $WebAppServicePrincipalId"
 
     az sql server ad-admin create --resource-group $RG --server-name $SqlServerName --display-name "$WebAppName-MSI" --object-id $WebAppServicePrincipalId
